@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CAAC 地面站题库7类｜航点/航向/距离 计算助手（通用锚点 + 扫描变体）</title>
+  <style>
+    :root{
+      --bg:#0b0c10; --text:#e9e9ee; --muted:#a7a7b2; --line:#262a3a;
+      --accent:#4aa3ff; --good:#34c759; --warn:#ff9f0a; --bad:#ff453a;
+      --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 10% 10%, #162036 0%, var(--bg) 55%) fixed;
+      color:var(--text);
+    }
+    .wrap{max-width:1320px;margin:22px auto;padding:0 16px}
+    header{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+    h1{margin:0;font-size:18px}
+    .sub{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+    .pill{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;background:rgba(0,0,0,.18)}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius: var(--r);
+      box-shadow: 0 10px 28px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .hd{padding:14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .h{font-weight:760;font-size:14px}
+    .bd{padding:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+    label{font-size:12px;color:var(--muted)}
+    input, select, textarea, button{
+      border-radius:12px;border:1px solid var(--line);
+      background:rgba(0,0,0,.25);
+      color:var(--text);
+      padding:10px; font-size:13px; outline:none;
+    }
+    input:focus, select:focus{
+      border-color: rgba(74,163,255,.65);
+      box-shadow: 0 0 0 3px rgba(74,163,255,.15);
+    }
+    button{cursor:pointer;font-weight:700;background: linear-gradient(180deg, rgba(74,163,255,.35), rgba(74,163,255,.18));}
+    button.secondary{background:rgba(255,255,255,.06)}
+    button.danger{background: linear-gradient(180deg, rgba(255,69,58,.28), rgba(255,69,58,.14))}
+    .hint{color:var(--muted);font-size:12px;line-height:1.5}
+    .tag{display:inline-block;padding:2px 8px;border:1px solid rgba(38,42,58,.9);border-radius:999px;color:var(--muted);font-size:11px;background:rgba(0,0,0,.18)}
+    .ok{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .sep{height:1px;background:rgba(38,42,58,.7);margin:12px 0}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    thead th{position:sticky;top:0;background:rgba(0,0,0,.12);color:var(--muted);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+    tbody td{padding:9px 8px;border-bottom:1px solid rgba(38,42,58,.7)}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12px;background:rgba(0,0,0,.25);
+      border:1px solid var(--line);border-radius:12px;padding:10px;white-space:pre;overflow:auto;max-height:420px;
+    }
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:980px){.two{grid-template-columns:1fr}}
+    .check{display:flex;gap:8px;align-items:center}
+    .check input{width:auto}
+    .mini{font-size:11px;color:var(--muted)}
+    .warnbox{
+      border:1px solid rgba(255,159,10,.35);
+      background:rgba(255,159,10,.08);
+      border-radius:14px;padding:10px;margin-top:10px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CAAC 地面站题库（7类）｜航点计算辅助（通用锚点：H相对点 + 跨点航向）</h1>
+      <div class="sub">
+        坐标系：本地 <b>N/E(米)</b>；航向角：<b>0°北，90°东</b>。程序固定 <b>H=(0,0)</b>，题目中的 “H 在 X 的某方向某距离” 用于定位。
+      </div>
+    </div>
+    <div class="row">
+      <span class="pill">方向支持：SE / 135 / -30 / 东偏北60</span>
+      <span class="pill">闭合：回到1号点（不回H）可选</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT -->
+    <section class="card">
+      <div class="hd">
+        <div class="h">① 选择图形 + 参数</div>
+        <div class="row">
+          <button class="secondary" id="btnDemoScanVariant">加载“扫描变体”示例（你那张图风格）</button>
+          <button class="secondary" id="btnReset">重置</button>
+        </div>
+      </div>
+
+      <div class="bd">
+        <div class="row">
+          <div style="min-width:380px;flex:1">
+            <label>图形类型（题库7类）</label><br/>
+            <select id="shape">
+              <option value="Q1_eq_tri">题一：等边三角形（边长 a）</option>
+              <option value="Q2_iso_right_tri">题二：等腰直角三角形（①②=a1，①③=a2，∠①=90°）</option>
+              <option value="Q3_hex">题三：正六边形（边长 a；①②③高度b，④⑤⑥高度c）</option>
+              <option value="Q4_scan">题四：扫描航线（标准/变体）</option>
+              <option value="Q5_concave">题五：凹五边形（①②、②③ 边长 a；∠①=∠②=∠④=90°）</option>
+              <option value="Q6_quad">题六：四边形（①②=a，②③=a，③④=b；∠②=∠③=90°）</option>
+              <option value="Q7_bowtie">题七：交叉四边形（闭合；点间距≥20；1/2/3/4 高度各不同）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="row">
+          <div style="min-width:180px">
+            <label>默认水平速度 V（m/s）</label><br/>
+            <input id="spd" type="number" step="0.1" value="3"/>
+          </div>
+          <div style="min-width:180px">
+            <label>垂直速度 d/f/e（m/s）</label><br/>
+            <input id="vspd" type="number" step="0.1" value="1"/>
+          </div>
+          <div style="min-width:240px">
+            <label>各点停留（s，若题目要求）</label><br/>
+            <input id="stay" type="number" step="0.1" value="0"/>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="check">
+            <input type="checkbox" id="chkClose"/>
+            <label for="chkClose">闭合（自动加最后一段 n→1）</label>
+          </div>
+          <div style="min-width:220px">
+            <label>循环圈数（DO_JUMP提示）</label><br/>
+            <input id="loops" type="number" step="1" value="1" min="1">
+          </div>
+          <div style="min-width:340px;flex:1">
+            <label>辅助点（画图模式）</label><br/>
+            <select id="constructMode">
+              <option value="none">不使用辅助点（最贴题目答案）</option>
+              <option value="orth">把斜线段拆成两条直角段（插入K点，画完可删）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;background:rgba(0,0,0,.18)">
+          <div class="hd">
+            <div class="h">图形参数</div>
+            <div class="hint" id="paramHint"></div>
+          </div>
+          <div class="bd" id="paramBox"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px;background:rgba(0,0,0,.18)">
+          <div class="hd">
+            <div class="h">② 输入题目条件（通用锚点 + 段条件）</div>
+            <div class="row">
+              <button class="secondary" id="btnAddPos">+ A在B方向距离（含H）</button>
+              <button class="secondary" id="btnAddBear">+ A→B航向（跨点锚点）</button>
+              <button class="secondary" id="btnAddSegDist">+ A→B距离（段距离）</button>
+              <button class="secondary" id="btnAddSegSpd">+ 段速度覆盖</button>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="hint">
+              例：<span class="tag">H 在 2 的 SW 20</span>（定位锚点）；
+              <span class="tag">2→12 航向 NE</span>（定向锚点）；
+              <span class="tag">11→12 距离 15</span>（半段/题目给距离）。
+            </div>
+            <div class="warnbox hint">
+              <b>推荐最稳的做题方式：</b>
+              先填 1 条“航向锚点”（定方向），再填 1 条“H相对点”（定位置）。如果两条都没有，图形可能出现镜像/多解，程序会提示你补条件。
+            </div>
+            <div class="sep"></div>
+            <div id="condList"></div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;justify-content:space-between">
+          <button id="btnSolve">生成并计算</button>
+          <div class="row">
+            <button class="secondary" id="btnCopyCSV">复制段表 CSV</button>
+            <button class="secondary" id="btnCopyMP">复制 MP提示文本</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT -->
+    <section class="card">
+      <div class="hd">
+        <div class="h">③ 输出：段表（用于 MP 手动画航线）</div>
+        <span class="pill">H→1→2→…</span>
+      </div>
+      <div class="bd">
+        <div style="overflow:auto;max-height:320px;border:1px solid var(--line);border-radius:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>从→到</th>
+                <th>距离(m)</th>
+                <th>航向(°)</th>
+                <th>高度(m)</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody id="segBody"></tbody>
+          </table>
+        </div>
+
+        <div class="row" style="margin-top:10px;justify-content:space-between">
+          <div class="hint">总航程：<span class="ok" id="sumDist">0</span> m ｜点数：<span class="ok" id="ptCount">0</span></div>
+          <div class="hint"><span class="warn">K点=辅助点</span>（画完可删）</div>
+        </div>
+
+        <div class="two" style="margin-top:12px">
+          <div>
+            <div class="hint">点坐标（N/E，米）</div>
+            <div class="kbd" id="outPts"></div>
+          </div>
+          <div>
+            <div class="hint">MP操作提示（照抄步骤）</div>
+            <div class="kbd" id="outMP"></div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <div class="kbd" id="outTips"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ================== 数学基础 ================== */
+const toRad = d => d*Math.PI/180;
+const toDeg = r => r*180/Math.PI;
+const norm360 = x => ((x%360)+360)%360;
+
+function dist(p,q){ return Math.hypot(q.N-p.N, q.E-p.E); }
+function bearing(p,q){
+  const dN=q.N-p.N, dE=q.E-p.E;
+  return norm360(toDeg(Math.atan2(dE,dN)));
+}
+function vecFrom(b, d){
+  const r=toRad(b);
+  return {dN:d*Math.cos(r), dE:d*Math.sin(r)};
+}
+function rotatePoint(p, c, thetaDeg){
+  const t=toRad(thetaDeg), cs=Math.cos(t), sn=Math.sin(t);
+  const n=p.N-c.N, e=p.E-c.E;
+  return {...p, N:n*cs - e*sn + c.N, E:n*sn + e*cs + c.E};
+}
+function shiftPoint(p, dN, dE){ return {...p, N:p.N+dN, E:p.E+dE}; }
+
+function parseDir(s){
+  if(!s) return null;
+  let t = String(s).trim();
+  if(!t) return null;
+  t = t.replace(/\s+/g,'').toUpperCase().replace('°','');
+  const map={N:0,E:90,S:180,W:270,NE:45,SE:135,SW:225,NW:315};
+  if(map[t]!==undefined) return map[t];
+  if(/^[+-]?\d+(\.\d+)?$/.test(t)) return norm360(Number(t));
+  const m = t.match(/^([东西南北])偏([东西南北])([+-]?\d+(\.\d+)?)$/);
+  if(m){
+    const A=m[1], B=m[2], ang=Number(m[3]);
+    const axis={'北':0,'东':90,'南':180,'西':270};
+    const base=axis[A];
+    const signTable = {
+      '东北': -1, '东南': +1,
+      '北东': +1, '北西': -1,
+      '南东': -1, '南西': +1,
+      '西北': +1, '西南': +1
+    };
+    const sign = signTable[A+B] ?? +1;
+    return norm360(base + sign*ang);
+  }
+  return null;
+}
+function dirToText(deg){
+  const d=norm360(deg);
+  const map={
+    0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'
+  };
+  for(const k of Object.keys(map)){
+    if(Math.abs(d-Number(k))<1e-6) return map[k];
+  }
+  return d.toFixed(0)+'°';
+}
+
+/* ================== 7类图形模板（骨架） ================== */
+function gen_Q1_eq_tri(a){
+  const h = Math.sqrt(3)/2*a;
+  return [
+    {name:'1', N:0, E:0},
+    {name:'2', N:0, E:a},
+    {name:'3', N:h, E:a/2},
+  ];
+}
+function gen_Q2_iso_right(a1,a2){
+  return [
+    {name:'1', N:0, E:0},
+    {name:'2', N:0, E:a1},
+    {name:'3', N:a2, E:0},
+  ];
+}
+function gen_Q3_hex(a){
+  const k = Math.sqrt(3)/2*a;
+  const pts=[
+    {name:'1', N:-a,   E:0},
+    {name:'2', N:-a/2, E:-k},
+    {name:'3', N:a/2,  E:-k},
+    {name:'4', N:a,    E:0},
+    {name:'5', N:a/2,  E:k},
+    {name:'6', N:-a/2, E:k},
+  ];
+  const sN=pts[0].N, sE=pts[0].E;
+  return pts.map(p=>({name:p.name, N:p.N-sN, E:p.E-sE}));
+}
+function gen_Q6_quad(a,b){
+  const p2={N:a, E:0};
+  const p3={N:0, E:0};
+  const p1={N:a, E:a};
+  const p4={N:0, E:b};
+  return [
+    {name:'1',...p1},
+    {name:'2',...p2},
+    {name:'3',...p3},
+    {name:'4',...p4},
+  ].sort((x,y)=>Number(x.name)-Number(y.name));
+}
+function gen_Q7_bowtie(w,h){
+  return [
+    {name:'1', N:0, E:0},
+    {name:'2', N:h, E:0},
+    {name:'3', N:h, E:w},
+    {name:'4', N:0, E:w},
+  ];
+}
+function gen_Q5_concave(a, depth){
+  const p1={N:0,E:0};
+  const p2={N:a,E:0};
+  const p3={N:a,E:a};
+  const p5={N:0,E:a};
+  const p4={N:a/2, E:a - depth}; // 左凹
+  return [
+    {name:'1',...p1},
+    {name:'2',...p2},
+    {name:'3',...p3},
+    {name:'4',...p4},
+    {name:'5',...p5},
+  ];
+}
+
+/* ================== 题四扫描（标准/变体） ==================
+标准：给 a,b 生成蛇形 12点
+变体：用户给竖向间距 b + 每层水平段长度数组 lens[层]，自动生成点
+*/
+function gen_Q4_scan_standard(a,b){
+  const P={};
+  P['2']={N:0,E:0};
+  P['1']={N:0,E:a};
+  P['3']={N:b,E:0};
+  P['4']={N:b,E:a};
+  P['6']={N:2*b,E:0};
+  P['5']={N:2*b,E:a};
+  P['7']={N:3*b,E:0};
+  P['8']={N:3*b,E:a};
+  P['10']={N:4*b,E:0};
+  P['9']={N:4*b,E:a};
+  P['11']={N:5*b,E:0};
+  P['12']={N:5*b,E:a};
+  return Object.keys(P).map(k=>({name:k, ...P[k]})).sort((x,y)=>Number(x.name)-Number(y.name));
+}
+function gen_Q4_scan_variant(b, lens){
+  // lens: 每层水平长度，从下往上共 layers 条水平段
+  // 规则：第1层是 2->1（向右），第2层 3->4（向右），第3层 6->5（向右）... 奇怪编号按题库固定：
+  // 点编号在题库图：底层 2-1；上去 3-4；再上 6-5；再上 7-8；再上 10-9；再上 11-12
+  // 也就是说每一层的“左右端点编号”是固定的，只是长度可变。
+  const pairs = [
+    ['2','1'],
+    ['3','4'],
+    ['6','5'],
+    ['7','8'],
+    ['10','9'],
+    ['11','12'],
+  ];
+  const P={};
+  for(let i=0;i<pairs.length;i++){
+    const [L,R]=pairs[i];
+    const y = i*b;                  // N坐标
+    const a = Number(lens[i] ?? lens[lens.length-1] ?? 0); // 该层水平长度
+    // 约定：左端点 E=0，右端点 E=a
+    P[L]={N:y, E:0};
+    P[R]={N:y, E:a};
+  }
+  // 若用户只给前几层，缺层就不生成对应点
+  const out=[];
+  for(const k of Object.keys(P)){
+    out.push({name:k, ...P[k]});
+  }
+  return out.sort((x,y)=>Number(x.name)-Number(y.name));
+}
+
+/* ================== 条件应用：旋转/平移（全题型通用锚点） ================== */
+function applyBearToShape(shapePts, A, B, dirDeg){
+  const pA=shapePts.find(x=>x.name===A), pB=shapePts.find(x=>x.name===B);
+  if(!pA||!pB) throw new Error('航向条件点不存在：'+A+'→'+B+'（必须是图形点，H不建议出现在航向里）');
+  const cur=bearing(pA,pB);
+  const theta=norm360(dirDeg-cur);
+  return shapePts.map(p=>rotatePoint(p, pA, theta));
+}
+function applyPosToShape(shapePts, A, B, dirDeg, d){
+  const v=vecFrom(dirDeg,d);
+  const H={N:0,E:0};
+
+  // A=H：H = B + v => B = H - v
+  if(A==='H' && B!=='H'){
+    const pB=shapePts.find(x=>x.name===B);
+    if(!pB) throw new Error('位置条件点不存在：'+B);
+    const targetB={N:H.N - v.dN, E:H.E - v.dE};
+    const dN=targetB.N - pB.N, dE=targetB.E - pB.E;
+    return shapePts.map(p=>shiftPoint(p,dN,dE));
+  }
+  // B=H：A = H + v
+  if(B==='H' && A!=='H'){
+    const pA=shapePts.find(x=>x.name===A);
+    if(!pA) throw new Error('位置条件点不存在：'+A);
+    const targetA={N:H.N + v.dN, E:H.E + v.dE};
+    const dN=targetA.N - pA.N, dE=targetA.E - pA.E;
+    return shapePts.map(p=>shiftPoint(p,dN,dE));
+  }
+
+  // 点-点：平移整图满足 A = B + v
+  const pA=shapePts.find(x=>x.name===A), pB=shapePts.find(x=>x.name===B);
+  if(!pA||!pB) throw new Error('位置条件点不存在：'+A+' / '+B);
+  const targetA={N:pB.N + v.dN, E:pB.E + v.dE};
+  const dN=targetA.N - pA.N, dE=targetA.E - pA.E;
+  return shapePts.map(p=>shiftPoint(p,dN,dE));
+}
+
+/* ================== 段表 + 辅助点 ================== */
+function buildSegments(seq, constructMode){
+  const segs=[];
+  let sum=0;
+  let kId=1;
+
+  function pushSeg(from, to, note=''){
+    const d=dist(from,to);
+    const b=bearing(from,to);
+    sum+=d;
+    segs.push({from:from.name,to:to.name,dist:d,b:b,note});
+  }
+
+  const expanded=[seq[0]];
+  for(let i=0;i<seq.length-1;i++){
+    const A=seq[i], B=seq[i+1];
+    const dN=B.N-A.N, dE=B.E-A.E;
+
+    if(constructMode==='orth' && Math.abs(dN)>1e-6 && Math.abs(dE)>1e-6){
+      const K={name:'K'+(kId++), N:A.N, E:B.E, _helper:true};
+      expanded.push(K); expanded.push(B);
+    }else{
+      expanded.push(B);
+    }
+  }
+
+  for(let i=0;i<expanded.length-1;i++){
+    const A=expanded[i], B=expanded[i+1];
+    const note = (A._helper||B._helper) ? '辅助段（K点可删）' : '';
+    pushSeg(A,B,note);
+  }
+  return {expanded, segs, sum};
+}
+
+/* ================== 高度映射（题库差异） ================== */
+function buildAltMap(shape, params){
+  const map=new Map();
+  const setAll = (v)=>{ for(let i=1;i<=30;i++) map.set(String(i), v); };
+
+  if(shape==='Q1_eq_tri' || shape==='Q2_iso_right_tri' || shape==='Q4_scan' || shape==='Q5_concave' || shape==='Q6_quad'){
+    setAll(params.altAll);
+    return map;
+  }
+  if(shape==='Q3_hex'){
+    map.set('1', params.altB);
+    map.set('2', params.altB);
+    map.set('3', params.altB);
+    map.set('4', params.altC);
+    map.set('5', params.altC);
+    map.set('6', params.altC);
+    return map;
+  }
+  if(shape==='Q7_bowtie'){
+    map.set('1', params.alt1);
+    map.set('2', params.alt2);
+    map.set('3', params.alt3);
+    map.set('4', params.alt4);
+    return map;
+  }
+  return map;
+}
+
+/* ================== UI ================== */
+const $=id=>document.getElementById(id);
+function pointOptions(){
+  const arr=['H']; for(let i=1;i<=20;i++) arr.push(String(i));
+  return arr.map(x=>`<option value="${x}">${x}</option>`).join('');
+}
+function addNumField(id,label,def,step='0.01'){
+  return `
+    <div style="min-width:190px;flex:1">
+      <label>${label}</label><br/>
+      <input id="${id}" type="number" step="${step}" value="${def}">
+    </div>`;
+}
+function addTextField(id,label,def,ph=''){
+  return `
+    <div style="min-width:220px;flex:1">
+      <label>${label}</label><br/>
+      <input id="${id}" type="text" value="${def}" placeholder="${ph}">
+    </div>`;
+}
+
+function renderParams(){
+  const shape=$('shape').value;
+  const box=$('paramBox');
+  const hint=$('paramHint');
+  box.innerHTML='';
+
+  if(shape==='Q1_eq_tri'){
+    hint.textContent='边长 a；高度=全局';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_a','边长 a（m）',30)}
+        ${addNumField('p_altAll','高度（m）',30)}
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+
+  if(shape==='Q2_iso_right_tri'){
+    hint.textContent='①②=a1，①③=a2；高度=全局';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_a1','a1 = ①②（m）',30)}
+        ${addNumField('p_a2','a2 = ①③（m）',30)}
+        ${addNumField('p_altAll','高度（m）',30)}
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+
+  if(shape==='Q3_hex'){
+    hint.textContent='边长 a；①②③高度b；④⑤⑥高度c';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_a','边长 a（m）',30)}
+        ${addNumField('p_altB','高度 b（m）(①②③)',25)}
+        ${addNumField('p_altC','高度 c（m）(④⑤⑥)',30)}
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+
+  if(shape==='Q4_scan'){
+    hint.textContent='标准：a,b生成；变体：竖向间距 b + 每层水平长度表（从下往上）';
+    box.innerHTML=`
+      <div class="row">
+        <div style="min-width:280px;flex:1">
+          <label>题四模式</label><br/>
+          <select id="p_scanMode">
+            <option value="standard">标准（a,b生成12点）</option>
+            <option value="variant">变体（自定义每层水平长度）</option>
+          </select>
+        </div>
+        ${addNumField('p_altAll','高度（m）',30)}
+      </div>
+
+      <div class="card" style="margin-top:10px;background:rgba(0,0,0,.12)">
+        <div class="hd">
+          <div class="h">标准参数</div>
+          <div class="mini">用于“题库原版扫描”</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            ${addNumField('p_a','水平长度 a（m）',30)}
+            ${addNumField('p_b','竖向间距 b（m）',10)}
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;background:rgba(0,0,0,.12)">
+        <div class="hd">
+          <div class="h">变体参数（按你画的图直接填）</div>
+          <div class="mini">层= 2→1 / 3→4 / 6→5 / 7→8 / 10→9 / 11→12</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            ${addNumField('p_v_b','竖向间距 b（m）',10)}
+          </div>
+          <div class="sep"></div>
+          <div class="hint">每层水平长度（m，允许不相等）：</div>
+          <div class="row" style="margin-top:6px">
+            ${addNumField('p_l1','2→1 长度',50)}
+            ${addNumField('p_l2','3→4 长度',50)}
+            ${addNumField('p_l3','6→5 长度',25)}
+          </div>
+          <div class="row" style="margin-top:6px">
+            ${addNumField('p_l4','7→8 长度',25)}
+            ${addNumField('p_l5','10→9 长度',25)}
+            ${addNumField('p_l6','11→12 长度',25)}
+          </div>
+          <div class="hint" style="margin-top:6px">
+            如果题目说“某一段只有一半”，优先用 <b>A→B距离</b> 条件覆盖那一段；或直接把该层长度填成一半。
+          </div>
+        </div>
+      </div>
+    `;
+    $('chkClose').checked=false;
+    // 切换模式时隐藏/提示（可选：简单起见不隐藏，只看你选的mode）
+    return;
+  }
+
+  if(shape==='Q5_concave'){
+    hint.textContent='①②、②③ 边长 a；凹深 depth 默认 0.6a（若题目给其它条件可用锚点/段距离修正）';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_a','a（m）=①②=②③',30)}
+        ${addNumField('p_depth','凹深 depth（m）',18)}
+        ${addNumField('p_altAll','高度（m）',30)}
+      </div>
+      <div class="warnbox hint">
+        题五在“仅给直角+两边长”时可能多解。请至少再加一条：<b>航向锚点</b> 或 <b>H相对点</b>，程序会更稳定。
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+
+  if(shape==='Q6_quad'){
+    hint.textContent='①②=a；②③=a；③④=b；高度=全局';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_a','a（m）',20)}
+        ${addNumField('p_b','b（m）',30)}
+        ${addNumField('p_altAll','高度（m）',30)}
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+
+  if(shape==='Q7_bowtie'){
+    hint.textContent='交叉四边形：骨架用 w,h；高度 1/2/3/4 分别输入；输出走法 1→2→4→3→1（交叉）';
+    box.innerHTML=`
+      <div class="row">
+        ${addNumField('p_w','宽 w（m）',40)}
+        ${addNumField('p_h','高 h（m）',40)}
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        ${addNumField('p_alt1','高度 a（m）@点1',20)}
+        ${addNumField('p_alt2','高度 b（m）@点2',25)}
+        ${addNumField('p_alt3','高度 c（m）@点3',30)}
+        ${addNumField('p_alt4','高度 d（m）@点4',25)}
+      </div>`;
+    $('chkClose').checked=true;
+    return;
+  }
+}
+
+/* ================== 条件UI（POS/BEAR/SEGDIST/SEGSPD） ================== */
+let conds=[];
+function renderConds(){
+  const list=$('condList');
+  list.innerHTML='';
+  if(conds.length===0){
+    const d=document.createElement('div');
+    d.className='hint';
+    d.textContent='暂无条件。建议至少填：1条航向锚点（定方向） + 1条H相对点（定位置）。';
+    list.appendChild(d);
+    return;
+  }
+  conds.forEach((c,idx)=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.background='rgba(0,0,0,.18)';
+    card.style.marginBottom='10px';
+
+    let body='';
+    if(c.kind==='POS'){
+      body=`
+        <div class="row">
+          <div style="min-width:130px"><label>A 点</label><br/><select data-k="A">${pointOptions()}</select></div>
+          <div style="min-width:130px"><label>B 点</label><br/><select data-k="B">${pointOptions()}</select></div>
+          <div style="min-width:230px;flex:1"><label>方向</label><br/>
+            <input data-k="dir" type="text" value="${c.dir??''}" placeholder="例如 SW / 225 / 东偏北60"></div>
+          <div style="min-width:160px"><label>距离（m）</label><br/>
+            <input data-k="dist" type="number" step="0.01" value="${c.dist??''}" placeholder="例如 20"></div>
+        </div>
+        <div class="hint" style="margin-top:6px" id="eq-${idx}"></div>
+      `;
+    }else if(c.kind==='BEAR'){
+      body=`
+        <div class="row">
+          <div style="min-width:130px"><label>A 点</label><br/><select data-k="A">${pointOptions()}</select></div>
+          <div style="min-width:130px"><label>B 点</label><br/><select data-k="B">${pointOptions()}</select></div>
+          <div style="min-width:230px;flex:1"><label>航向</label><br/>
+            <input data-k="dir" type="text" value="${c.dir??''}" placeholder="例如 NE / 45 / -30"></div>
+        </div>
+        <div class="hint" style="margin-top:6px">表示：<b>${c.A}→${c.B}</b> 航向=该方向（旋转整图，跨点也一样）。</div>
+      `;
+    }else if(c.kind==='SEGDIST'){
+      body=`
+        <div class="row">
+          <div style="min-width:130px"><label>A 点</label><br/><select data-k="A">${pointOptions()}</select></div>
+          <div style="min-width:130px"><label>B 点</label><br/><select data-k="B">${pointOptions()}</select></div>
+          <div style="min-width:230px;flex:1"><label>距离（m）</label><br/>
+            <input data-k="dist" type="number" step="0.01" value="${c.dist??''}" placeholder="例如 15"></div>
+        </div>
+        <div class="hint" style="margin-top:6px">表示：段 <b>${c.A}→${c.B}</b> 的距离=该值（适合“半段/题目给距离”）。</div>
+      `;
+    }else{
+      body=`
+        <div class="row">
+          <div style="min-width:130px"><label>A 点</label><br/><select data-k="A">${pointOptions()}</select></div>
+          <div style="min-width:130px"><label>B 点</label><br/><select data-k="B">${pointOptions()}</select></div>
+          <div style="min-width:230px;flex:1"><label>速度（m/s）</label><br/>
+            <input data-k="spd" type="number" step="0.1" value="${c.spd??''}" placeholder="例如 3"></div>
+        </div>
+        <div class="hint" style="margin-top:6px">表示：段 <b>${c.A}→${c.B}</b> 速度覆盖（输出提示）。</div>
+      `;
+    }
+
+    card.innerHTML=`
+      <div class="hd">
+        <div class="h">${c.kind==='POS'?'A在B方向距离（定位/位移）':(c.kind==='BEAR'?'A→B航向（定向锚点）':(c.kind==='SEGDIST'?'A→B距离（段距离）':'段速度覆盖'))}  #${idx+1}</div>
+        <button class="danger" data-del="${idx}">删除</button>
+      </div>
+      <div class="bd">${body}</div>
+    `;
+
+    const selA=card.querySelector('select[data-k="A"]');
+    const selB=card.querySelector('select[data-k="B"]');
+    selA.value=c.A; selB.value=c.B;
+
+    function updateEq(){
+      if(c.kind!=='POS') return;
+      const eq=card.querySelector(`#eq-${idx}`);
+      const dir=parseDir(c.dir);
+      if(eq){
+        if(c.A==='H' && c.B!=='H' && dir!==null && Number(c.dist)>0){
+          // H 在 B 的 dir dist  等价：B 在 H 的 dir+180 dist
+          eq.innerHTML = `等价：<b>${c.B}</b> 在 <b>H</b> 的 <b>${dirToText(norm360(dir+180))}</b> 方向 <b>${Number(c.dist)}</b>m（因为H固定）`;
+        }else if(c.B==='H' && c.A!=='H' && dir!==null && Number(c.dist)>0){
+          eq.innerHTML = `等价：<b>H</b> 在 <b>${c.A}</b> 的 <b>${dirToText(norm360(dir+180))}</b> 方向 <b>${Number(c.dist)}</b>m`;
+        }else{
+          eq.textContent = '表示：A 在 B 的该方向、该距离。';
+        }
+      }
+    }
+
+    card.addEventListener('change',(ev)=>{
+      const t=ev.target;
+      const k=t.getAttribute('data-k'); if(!k) return;
+      c[k]=t.value;
+      c.A=selA.value; c.B=selB.value;
+      renderConds();
+    });
+    card.addEventListener('input',(ev)=>{
+      const t=ev.target;
+      const k=t.getAttribute('data-k'); if(!k) return;
+      c[k]=t.value;
+      updateEq();
+    });
+    card.querySelector('button[data-del]').onclick=()=>{ conds.splice(idx,1); renderConds(); };
+
+    list.appendChild(card);
+    updateEq();
+  });
+}
+
+/* ================== 读参数 + 生成形状 ================== */
+function num(id){ return Number($(id)?.value); }
+function txt(id){ return String($(id)?.value ?? ''); }
+
+function buildShapeAndParams(){
+  const shape=$('shape').value;
+
+  if(shape==='Q1_eq_tri'){
+    const a=num('p_a'); const altAll=num('p_altAll');
+    return {shapePts: gen_Q1_eq_tri(a), altParams:{altAll}};
+  }
+  if(shape==='Q2_iso_right_tri'){
+    const a1=num('p_a1'); const a2=num('p_a2'); const altAll=num('p_altAll');
+    return {shapePts: gen_Q2_iso_right(a1,a2), altParams:{altAll}};
+  }
+  if(shape==='Q3_hex'){
+    const a=num('p_a'); const altB=num('p_altB'); const altC=num('p_altC');
+    return {shapePts: gen_Q3_hex(a), altParams:{altB,altC}};
+  }
+  if(shape==='Q4_scan'){
+    const altAll=num('p_altAll');
+    const mode = (document.getElementById('p_scanMode')?.value ?? 'standard');
+    if(mode==='variant'){
+      const b=num('p_v_b');
+      const lens=[num('p_l1'),num('p_l2'),num('p_l3'),num('p_l4'),num('p_l5'),num('p_l6')];
+      // 若某层没填就当成 0（不生成那层）
+      const any = lens.some(x=>x>0);
+      if(!any) throw new Error('题四变体：请至少填写一层水平长度');
+      const pts = gen_Q4_scan_variant(b, lens);
+      return {shapePts: pts, altParams:{altAll}};
+    }else{
+      const a=num('p_a'); const b=num('p_b');
+      return {shapePts: gen_Q4_scan_standard(a,b), altParams:{altAll}};
+    }
+  }
+  if(shape==='Q5_concave'){
+    const a=num('p_a'); let depth=num('p_depth');
+    if(!depth || depth<=0) depth=0.6*a;
+    const altAll=num('p_altAll');
+    return {shapePts: gen_Q5_concave(a,depth), altParams:{altAll}};
+  }
+  if(shape==='Q6_quad'){
+    const a=num('p_a'); const b=num('p_b'); const altAll=num('p_altAll');
+    return {shapePts: gen_Q6_quad(a,b), altParams:{altAll}};
+  }
+  if(shape==='Q7_bowtie'){
+    const w=num('p_w'); const h=num('p_h');
+    const alt1=num('p_alt1'), alt2=num('p_alt2'), alt3=num('p_alt3'), alt4=num('p_alt4');
+    return {shapePts: gen_Q7_bowtie(w,h), altParams:{alt1,alt2,alt3,alt4}};
+  }
+  throw new Error('未知图形');
+}
+
+/* ================== 段距离覆盖（SEGDIST）：把B点沿AB方向推到指定距离，并整体平移后续点（只对顺序段有效） ==================
+为“半段/题目给距离”服务：比如 11→12=15m
+原则：只修改“航线顺序里的相邻段”。如果你写了非相邻，会提示忽略。
+*/
+function applySegDistOverrides(orderPoints, segDistConds){
+  // orderPoints: [H, 1,2,...] (未闭合/闭合都可)
+  const idxOf = (name)=>orderPoints.findIndex(p=>p.name===name);
+  const byKey=new Map();
+  for(const c of segDistConds){
+    const d=Number(c.dist);
+    if(!(d>0)) continue;
+    byKey.set(`${c.A}->${c.B}`, d);
+  }
+  // 从前往后处理，保证“后面的点”整体移动
+  for(let i=0;i<orderPoints.length-1;i++){
+    const A=orderPoints[i], B=orderPoints[i+1];
+    const key=`${A.name}->${B.name}`;
+    if(!byKey.has(key)) continue;
+    const targetD=byKey.get(key);
+    const curD=dist(A,B);
+    if(curD<1e-8) continue;
+
+    // 沿 AB 方向缩放到 targetD
+    const ratio = targetD/curD;
+    const newB = { ...B, N: A.N + (B.N-A.N)*ratio, E: A.E + (B.E-A.E)*ratio };
+
+    // 计算B点位移量，并把 i+1 之后所有点一起平移（保持后续形状不散）
+    const dN=newB.N - B.N;
+    const dE=newB.E - B.E;
+    orderPoints[i+1]=newB;
+    for(let k=i+2;k<orderPoints.length;k++){
+      orderPoints[k]=shiftPoint(orderPoints[k], dN, dE);
+    }
+  }
+  return orderPoints;
+}
+
+/* ================== 求解/输出 ================== */
+function solve(){
+  const shape=$('shape').value;
+
+  // 1) 生成骨架点
+  let {shapePts, altParams} = buildShapeAndParams();
+
+  // 2) 按规则：先航向（旋转），再位置（平移）
+  const bears=conds.filter(c=>c.kind==='BEAR');
+  const poss =conds.filter(c=>c.kind==='POS');
+  const segDists =conds.filter(c=>c.kind==='SEGDIST');
+  const segSpds  =conds.filter(c=>c.kind==='SEGSPD');
+
+  // --- 2.1 航向锚点（允许跨点，如 2->12）
+  for(const c of bears){
+    if(c.A==='H'||c.B==='H') throw new Error('航向条件不建议包含H（通常是点→点）。');
+    const b=parseDir(c.dir);
+    if(b===null) throw new Error('无法解析航向：'+c.dir);
+    shapePts=applyBearToShape(shapePts,c.A,c.B,b);
+  }
+
+  // --- 2.2 位置锚点（含 H 相对点）
+  for(const c of poss){
+    const b=parseDir(c.dir);
+    if(b===null) throw new Error('无法解析方向：'+c.dir);
+    const d=Number(c.dist);
+    if(!(d>0)) throw new Error('距离必须>0：'+c.dist);
+    shapePts=applyPosToShape(shapePts,c.A,c.B,b,d);
+  }
+
+  // 3) 航点顺序（题库编号顺序；题七特殊走法）
+  const H={name:'H',N:0,E:0};
+  const nums=shapePts
+    .filter(x=>/^\d+$/.test(x.name))
+    .sort((a,b)=>Number(a.name)-Number(b.name));
+
+  let orderNums = nums;
+  if(shape==='Q7_bowtie'){
+    const p1=nums.find(p=>p.name==='1');
+    const p2=nums.find(p=>p.name==='2');
+    const p3=nums.find(p=>p.name==='3');
+    const p4=nums.find(p=>p.name==='4');
+    orderNums = [p1,p2,p4,p3].filter(Boolean);
+  }
+
+  const close=$('chkClose').checked;
+  let seq = close ? [H, ...orderNums, orderNums[0]] : [H, ...orderNums];
+
+  // 4) 段距离覆盖（半段/题目给距离）：只对相邻段生效
+  if(segDists.length>0){
+    seq = applySegDistOverrides(seq.slice(), segDists);
+  }
+
+  // 5) 构造段表（可插K）
+  const cm=$('constructMode').value;
+  const {expanded,segs,sum}=buildSegments(seq,cm);
+
+  // 6) 高度映射（到达点高度）
+  const altMap = buildAltMap(shape, altParams);
+
+  // 7) 速度覆盖
+  const spdMap=new Map();
+  for(const c of segSpds){
+    const v=Number(c.spd);
+    if(v>0) spdMap.set(`${c.A}->${c.B}`, v);
+  }
+
+  // 8) 输出段表
+  const body=$('segBody'); body.innerHTML='';
+  segs.forEach((s,i)=>{
+    const alt = altMap.get(s.to) ?? '';
+    const note = [];
+    if(s.note) note.push(s.note);
+    const key=`${s.from}->${s.to}`;
+    if(spdMap.has(key)) note.push(`段速度=${spdMap.get(key)}m/s`);
+    // 若该段在SEGDIST中出现，也标注
+    if(segDists.some(x=>`${x.A}->${x.B}`===key)) note.push('段距离=题目给定/半段');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${i+1}</td>
+      <td>${s.from} → ${s.to}</td>
+      <td>${s.dist.toFixed(2)}</td>
+      <td>${s.b.toFixed(2)}</td>
+      <td>${(alt!=='' ? Number(alt).toFixed(1):'')}</td>
+      <td>${note.join('；')}</td>`;
+    body.appendChild(tr);
+  });
+  $('sumDist').textContent=sum.toFixed(2);
+  $('ptCount').textContent=expanded.length;
+
+  // 9) 点坐标输出
+  $('outPts').textContent = expanded.map(p=>{
+    const mark=p._helper?'  (K辅助点)':'';
+    return `${p.name}: N=${p.N.toFixed(3)}  E=${p.E.toFixed(3)}${mark}`;
+  }).join('\n');
+
+  // 10) MP操作提示
+  const defaultSpd=Number($('spd').value)||3;
+  const vspd=Number($('vspd').value)||1;
+  const stay=Number($('stay').value)||0;
+  const loops=Math.max(1, Math.round(Number($('loops').value)||1));
+
+  const tips=[];
+  tips.push(`【MP建议】1) Set Home Here → 设为 H（起飞点）。`);
+  tips.push(`【参数】默认水平速度V=${defaultSpd}m/s，垂直速度=${vspd}m/s，停留=${stay}s，Alt按题库/输入。`);
+  tips.push('');
+
+  for(let i=0;i<segs.length;i++){
+    const s=segs[i];
+    const alt = altMap.get(s.to) ?? '';
+    const key=`${s.from}->${s.to}`;
+    if(spdMap.has(key)) tips.push(`- 速度变化：到 ${s.from} 或 ${s.to} 前插入 DO_CHANGE_SPEED=${spdMap.get(key)}m/s`);
+    tips.push(`画点 ${s.to}：从 ${s.from} 出发，航向 ${s.b.toFixed(0)}°，距离 ${s.dist.toFixed(1)}m，Alt=${(alt!==''?alt:'(同前)')}${stay>0?`，停留${stay}s`:''}`);
+  }
+  if(loops>1) tips.push(`最后：DO_JUMP 回到第1个航点，循环 ${loops} 圈。`);
+
+  $('outMP').textContent = tips.join('\n');
+
+  // 11) 全局提示：是否缺锚点、是否可能多解
+  const hasBear = bears.length>0;
+  const hasPosH = poss.some(c=>c.A==='H' || c.B==='H');
+  const msgs=[];
+  msgs.push(`✅ 通用锚点：航向（旋转）与 H相对点（平移）对所有题型都适用。`);
+  if(hasBear) msgs.push(`✅ 已锁定方向：使用了 ${bears.length} 条航向锚点。`);
+  else msgs.push(`⚠️ 未提供航向锚点：图形方向可能与现场不一致（建议加：如 2→12 航向 NE）。`);
+  if(hasPosH) msgs.push(`✅ 已锁定位置：存在 H 相对点条件（定位更稳）。`);
+  else msgs.push(`⚠️ 未提供“H相对点”：图形位置不唯一（建议加：H 在 X 的 某方向 某距离）。`);
+
+  if(shape==='Q5_concave' && (!hasBear && !hasPosH)){
+    msgs.push(`⚠️ 题五在缺少锚点时容易出现镜像/多解：建议至少补 1 条航向 或 1 条 H相对点。`);
+  }
+  msgs.push(`提示：段距离（A→B距离）用于“半段/题目给距离”，不会和“航向”混淆。`);
+  $('outTips').textContent = msgs.join('\n');
+
+  window.__last={expanded,segs,shape,altMap,spdMap,conds};
+}
+
+/* ================== 复制 ================== */
+function segCSV(){
+  const segs=window.__last?.segs||[];
+  const altMap=window.__last?.altMap||new Map();
+  const lines=['idx,from,to,distance_m,bearing_deg,alt_m,note'];
+  segs.forEach((s,i)=>{
+    const alt = altMap.get(s.to) ?? '';
+    lines.push(`${i+1},${s.from},${s.to},${s.dist.toFixed(3)},${s.b.toFixed(3)},${alt},"${(s.note||'').replace(/"/g,'""')}"`);
+  });
+  return lines.join('\n');
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); alert('已复制'); }
+  catch{
+    const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove(); alert('已复制');
+  }
+}
+
+/* ================== 事件 ================== */
+$('btnAddPos').onclick=()=>{ conds.push({kind:'POS', A:'H', B:'2', dir:'SW', dist:'20'}); renderConds(); };
+$('btnAddBear').onclick=()=>{ conds.push({kind:'BEAR', A:'2', B:'12', dir:'NE'}); renderConds(); };
+$('btnAddSegDist').onclick=()=>{ conds.push({kind:'SEGDIST', A:'11', B:'12', dist:'15'}); renderConds(); };
+$('btnAddSegSpd').onclick=()=>{ conds.push({kind:'SEGSPD', A:'2', B:'3', spd:'3'}); renderConds(); };
+
+$('btnSolve').onclick=()=>{ try{ solve(); }catch(e){ alert('计算失败：'+(e.message||e)); } };
+$('btnCopyCSV').onclick=()=>{ if(!window.__last) solve(); copyText(segCSV()); };
+$('btnCopyMP').onclick=()=>{ if(!window.__last) solve(); copyText($('outMP').textContent||''); };
+
+$('btnReset').onclick=()=>{
+  $('shape').value='Q1_eq_tri';
+  $('spd').value=3; $('vspd').value=1; $('stay').value=0;
+  $('chkClose').checked=true; $('loops').value=1; $('constructMode').value='none';
+  conds=[];
+  renderParams(); renderConds();
+  $('segBody').innerHTML='';
+  $('outPts').textContent='';
+  $('outMP').textContent='';
+  $('outTips').textContent='';
+  $('sumDist').textContent='0';
+  $('ptCount').textContent='0';
+  window.__last=null;
+};
+
+$('btnDemoScanVariant').onclick=()=>{
+  // 模拟你那张“扫描变体”风格：竖向间距10，各层水平不等；再加跨点航向+H定位
+  $('shape').value='Q4_scan';
+  renderParams();
+  setTimeout(()=>{
+    $('p_scanMode').value='variant';
+    $('p_altAll').value=70;
+    $('stay').value=2;
+    $('p_v_b').value=10;
+    $('p_l1').value=50; // 2->1
+    $('p_l2').value=50; // 3->4
+    $('p_l3').value=25; // 6->5
+    $('p_l4').value=25; // 7->8
+    $('p_l5').value=25; // 10->9
+    $('p_l6').value=25; // 11->12
+    $('chkClose').checked=true;
+    conds=[
+      {kind:'BEAR', A:'2', B:'12', dir:'NE'},   // 跨点航向锚点
+      {kind:'POS',  A:'H', B:'2',  dir:'SW', dist:'20'}, // H相对点
+    ];
+    renderConds();
+    solve();
+  },0);
+};
+
+$('shape').onchange=()=>{ renderParams(); window.__last=null; };
+renderParams();
+renderConds();
+</script>
+</body>
+</html>
